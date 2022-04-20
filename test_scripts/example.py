@@ -1,19 +1,13 @@
+from src.utils.data.loader import Loader as loader
+from src.utils.data.sources import Sources as sources
+from src.iterative_closest_point import IterativeClosestPoint as ICP
+
 import numpy as np
 import open3d as o3d
-import os
-
-# globals.
-DATA_DIR = 'Data'  # This depends on where this file is located. Change for your needs.
 
 
-######                                                           ######
-##      notice: This is just some example, feel free to adapt        ##
-######                                                           ######
-
-
-# == Load data ==
 def open3d_example():
-    pcd = o3d.io.read_point_cloud("Data/data/0000000000.pcd")
+    pcd = o3d.io.read_point_cloud("../data/data/0000000000.pcd")
     # ## convert into ndarray
 
     pcd_arr = np.asarray(pcd.points)
@@ -21,32 +15,15 @@ def open3d_example():
     # ***  you need to clean the point cloud using a threshold ***
     pcd_arr_cleaned = pcd_arr
 
-
     # visualization from ndarray
     vis_pcd = o3d.geometry.PointCloud()
     vis_pcd.points = o3d.utility.Vector3dVector(pcd_arr_cleaned)
+
     o3d.visualization.draw_geometries([vis_pcd])
 
 
-def open_wave_data():
-    target = np.load(os.path.join(DATA_DIR, 'wave_target.npy'))
-    source = np.load(os.path.join(DATA_DIR, 'wave_source.npy'))
-
-    return source, target
-
-
-def open_bunny_data():
-    target = np.load(os.path.join(DATA_DIR, 'bunny_target.npy'))
-    source = np.load(os.path.join(DATA_DIR, 'bunny_source.npy'))
-
-    return source, target
-
-
-############################
-#     ICP                  #
-############################
-
 ###### 0. (adding noise)
+
 
 ###### 1. initialize R= I , t= 0
 
@@ -77,3 +54,7 @@ def open_bunny_data():
 ############################
 #  Additional Improvements #
 ############################
+source_rabbits, target_rabbits = loader.get(sources.DATA_SOURCE_RABBITS)
+rotations, translations = ICP.run(source_rabbits.T, target_rabbits.T)
+
+pass
