@@ -1,10 +1,11 @@
 import numpy as np
+import open3d as o3d
 
 
 class IterativeClosestPoint:
 
   @staticmethod
-  def run(source: np.ndarray, target: np.ndarray) -> (np.ndarray, np.ndarray):
+  def run(source: np.ndarray, target: np.ndarray) -> list:
     """
     :param source:
     :type source: np.ndarray
@@ -13,43 +14,58 @@ class IterativeClosestPoint:
     :return: Returns a tuple consisting of the rotational matrix and the translation matrix
     :rtype: tuple
     """
-    rotation, translation = IterativeClosestPoint.compute(source, target)
+    self = IterativeClosestPoint
+    error_progression = list()
 
-    return rotation, translation
+    for i in range(1000):
+      # find the closest point in the target cloud for each point in the source point set
+      assigned_target = self.assign_targets(source, target)
+      rotation, translation = self.compute_rotation_translation(source, assigned_target)
+      transformed = np.matmul(source, rotation) + translation
+
+      error = self.calculate_error(transformed, assigned_target)
+      error_progression.append(error)
+
+      if error < 0.05 and i > 0:
+        point_cloud = o3d.geometry.PointCloud()
+        point_cloud.points = o3d.utility.Vector3dVector(transformed)
+        o3d.visualization.draw_geometries([point_cloud])
+
+      source = transformed
 
   @staticmethod
-  def compute(source: np.ndarray, target: np.ndarray) -> (np.ndarray, np.ndarray):
-    # find the closest point in the target cloud for each point in the source point set
-    closest_targets = IterativeClosestPoint.get_nearest_targets(source, target)
+  def compute_rotation_translation(source: np.ndarray, target: np.ndarray) -> (np.ndarray, np.ndarray):
+    self = IterativeClosestPoint
 
-    assert source.shape == closest_targets.shape
+    assert source.shape == target.shape
 
     # use the SVD method to find the rotation and translation matrices
     source_weighted_mean = np.sum(source, axis=0) / len(source)
-    target_weighted_mean = np.sum(closest_targets, axis=0) / len(closest_targets)
+    target_weighted_mean = np.sum(target, axis=0) / len(target)
 
     mean_reduced_source = source - source_weighted_mean
-    mean_reduced_target = closest_targets - target_weighted_mean
+    mean_reduced_target = target - target_weighted_mean
     cross_covariance = np.dot(mean_reduced_source.T, mean_reduced_target)
 
     u, d, v_t = np.linalg.svd(cross_covariance)
+
     rotation = np.dot(v_t.T, u.T)
     translation = target_weighted_mean.T - np.dot(rotation, source_weighted_mean.T)
 
     return rotation, translation
 
   @staticmethod
-  def get_nearest_targets(source: np.ndarray, target: np.ndarray):
-    max_range = len(target) if len(source) > len(target) else len(source)
-    closest = list()
+  def assign_targets(source: np.ndarray, target: np.ndarray):
+    closest_points = list()
 
     for i in range(len(source)):
-      distances = list()
+      distances = np.sum((target - source[i]) ** 2, axis = 1)
+      current_min = np.argmin(distances)
+      closest_point = target[current_min]
+      closest_points.append(closest_point)
 
-      for j in range(max_range):
-        distances.append(np.linalg.norm(target[j] - source[i]))
+    return np.array(closest_points)
 
-      closest_point = target[np.argmin(np.array(distances))]
-      closest.append(closest_point)
-
-    return np.array(closest)
+  @staticmethod
+  def calculate_error(calculated: np.ndarray, target: np.ndarray) -> float:
+    return np.sqrt(np.mean(np.sum((calculated - target) ** 2) ** 0.5))
