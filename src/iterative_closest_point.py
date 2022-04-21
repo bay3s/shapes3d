@@ -17,14 +17,16 @@ class IterativeClosestPoint:
     self = IterativeClosestPoint
     error_progression = list()
 
+    # find the closest point in the target cloud for each point in the source point set
+    assigned_target = self.assign_targets(source, target)
+
     for i in range(1000):
-      # find the closest point in the target cloud for each point in the source point set
-      assigned_target = self.assign_targets(source, target)
       rotation, translation = self.compute_rotation_translation(source, assigned_target)
       transformed = np.matmul(source, rotation) + translation
 
       error = self.calculate_error(transformed, assigned_target)
       error_progression.append(error)
+      print(error)
 
       if error < 0.05 and i > 0:
         point_cloud = o3d.geometry.PointCloud()
